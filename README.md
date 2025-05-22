@@ -75,5 +75,5 @@ open "TaskFlow.xcodeproj"
   <a href="#top">Back to top 🔝</a>
 </p>
 <p align="center">
-  &copy; &year; All Rights reserved
+  &copy; 2025 All Rights reserved
 </p>
