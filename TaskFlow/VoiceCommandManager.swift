@@ -48,8 +48,17 @@ class VoiceCommandManager: NSObject, SFSpeechRecognizerDelegate, ObservableObjec
     }
     
     func startRecording() throws {
-        recognitionTask?.cancel()
-        recognitionTask = nil
+        // Clean up any existing tasks
+        stopRecording()
+        
+        // Ensure we have proper permissions
+        guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+            throw NSError(domain: "VoiceCommandError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Speech recognition not authorized"])
+        }
+        
+        guard AVAudioSession.sharedInstance().recordPermission == .granted else {
+            throw NSError(domain: "VoiceCommandError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Microphone access not granted"])
+        }
         
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)

@@ -21,6 +21,7 @@ struct TaskCategory: Identifiable, Codable, Equatable {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(categories) {
             UserDefaults.standard.set(encoded, forKey: "savedCategories")
+            UserDefaults.standard.synchronize()
         }
     }
 

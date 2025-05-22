@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct AddTaskView: View {
     let categories: [TaskCategory]
@@ -47,7 +48,7 @@ struct AddTaskView: View {
                                             }) {
                                                 Text(suggestion)
                                                     .padding(.horizontal, 10)
-                                                    .padding(.vertical, 5)	
+                                                    .padding(.vertical, 5)
                                                     .background(Color.blue.opacity(0.1))
                                                     .cornerRadius(8)
                                             }
@@ -90,42 +91,119 @@ struct AddTaskView: View {
                     TextField("Add note", text: $note)
                 }
 
-                VStack {
-                    Button(action: {
-                        do {
-                            if VoiceCommandManager.shared.isRecording {
-                                VoiceCommandManager.shared.stopRecording()
-                            } else {
-                                try VoiceCommandManager.shared.startRecording()
-                                VoiceCommandManager.shared.onCommandRecognized = { command in
-                                    title = command
-                                    updatePredictions()
+                VStack(spacing: 12) {
+                    // Info text about voice commands
+                    Text("Speak your task naturally - I'll understand categories, priorities, and dates!")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    VStack(spacing: 8) {
+                        Button(action: {
+                            do {
+                                if VoiceCommandManager.shared.isRecording {
+                                    VoiceCommandManager.shared.stopRecording()
+                                } else {
+                                    // Reset any previous errors
+                                    VoiceCommandManager.shared.errorMessage = nil
+                                    try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: .duckOthers)
+                                    try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+                                    try VoiceCommandManager.shared.startRecording()
+                                    
+                                    // Provide immediate feedback
+                                    let impact = UIImpactFeedbackGenerator(style: .medium)
+                                    impact.impactOccurred()
+                                    
+                                    VoiceCommandManager.shared.onCommandRecognized = { command in
+                                        title = command
+                                        updatePredictions()
+                                        
+                                        // Provide success feedback
+                                        let notification = UINotificationFeedbackGenerator()
+                                        notification.notificationOccurred(.success)
+                                    }
                                 }
+                            } catch {
+                                VoiceCommandManager.shared.errorMessage = "Unable to start recording: \(error.localizedDescription)"
+                                let notification = UINotificationFeedbackGenerator()
+                                notification.notificationOccurred(.error)
                             }
-                        } catch {
-                            print("Recording error: \(error.localizedDescription)")
-                        }
-                    }) {
-                        Label(VoiceCommandManager.shared.isRecording ? "Stop Recording" : "Add by Voice",
-                              systemImage: VoiceCommandManager.shared.isRecording ? "stop.circle.fill" : "mic.fill")
-                            .font(.headline)
-                            .padding()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: VoiceCommandManager.shared.isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                                    .font(.system(size: 20))
+                                Text(VoiceCommandManager.shared.isRecording ? "Stop" : "Voice Input")
+                                    .font(.subheadline)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                             .background(VoiceCommandManager.shared.isRecording ? Color.red.opacity(0.2) : Color.blue.opacity(0.2))
                             .clipShape(Capsule())
-                    }
-                    .foregroundColor(VoiceCommandManager.shared.isRecording ? .red : .blue)
-
-                    if VoiceCommandManager.shared.isRecording {
-                        Text(VoiceCommandManager.shared.transcribedText)
-                            .foregroundColor(.secondary)
+                            .overlay(
+                                Group {
+                                    if VoiceCommandManager.shared.isRecording {
+                                        Capsule()
+                                            .stroke(Color.red, lineWidth: 2)
+                                            .scaleEffect(1.1)
+                                            .opacity(0.8)
+                                            .animation(
+                                                Animation.easeInOut(duration: 0.8)
+                                                    .repeatForever(autoreverses: true),
+                                                value: VoiceCommandManager.shared.isRecording
+                                            )
+                                    }
+                                }
+                            )
+                        }
+                        .foregroundColor(VoiceCommandManager.shared.isRecording ? .red : .blue)
+                        
+                        if VoiceCommandManager.shared.isRecording {
+                            // Visual feedback for recording
+                            HStack(spacing: 4) {
+                                ForEach(0..<3) { index in
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 4, height: 4)
+                                        .opacity(0.8)
+                                        .animation(
+                                            Animation.easeInOut(duration: 0.6)
+                                                .repeatForever()
+                                                .delay(Double(index) * 0.2),
+                                            value: VoiceCommandManager.shared.isRecording
+                                        )
+                                }
+                            }
                             .padding(.top, 4)
+                            
+                            Text(VoiceCommandManager.shared.transcribedText.isEmpty ? "Listening..." : VoiceCommandManager.shared.transcribedText)
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
+                        }
                     }
 
                     if let error = VoiceCommandManager.shared.errorMessage {
                         Text(error)
                             .foregroundColor(.red)
                             .font(.caption)
-                            .padding(.top, 4)
+                            .padding(.top, 2)
+                    }
+                    
+                    // Example commands
+                    if !VoiceCommandManager.shared.isRecording {
+                        VStack(spacing: 4) {
+                            Text("Try saying:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\"Buy groceries tomorrow morning\"")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text("\"High priority meeting with team at 2pm\"")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 8)
                     }
                 }
             }
@@ -140,4 +218,3 @@ struct AddTaskView: View {
         }
     }
 }
-// Test comment

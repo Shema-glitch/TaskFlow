@@ -8,7 +8,8 @@ struct ContentView: View {
     @State private var engine: CHHapticEngine?
     
     // MARK: - State Properties
-    @State private var categories = [
+    @State private var categories: [TaskCategory] = TaskCategory.loadCategories() ?? [
+        //    @State private var categories = [
         TaskCategory(
             name: "Work",
             icon: "briefcase.fill",
@@ -87,13 +88,29 @@ struct ContentView: View {
     @State private var showCalendar = false
     @State private var showAddCategory = false
     @State private var showStatistics = false
-    @State private var isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+    @StateObject private var themeManager = ThemeManager()
+    //    @State private var isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
     @State private var searchText = ""
     @State private var isSearching = false
     @State private var showImportExport = false
     @State private var showSettings = false
-    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false // Added state for tutorial
-    @State private var showingTutorial = false // Added state for tutorial
+    //    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false // Added state for tutorial
+    //    @State private var showingTutorial = false // Added state for tutorial
+    
+    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false
+    @State private var showingTutorial = false
+    @State private var showStarterTemplateAlert = false
+    //    @State private var showStarterTemplateAlert = false
+    
+    private func initializeCategories() {
+        categories = []
+        TaskCategory.saveCategories(categories)
+    }
+    
+    private func addStarterTemplate() {
+        categories = TaskCategory.defaultCategories
+        TaskCategory.saveCategories(categories)
+    }
     
     // MARK: - Constants
     private let quotes = [
@@ -117,6 +134,11 @@ struct ContentView: View {
     // MARK: - Body
     var body: some View {
         NavigationView {
+            //            .onAppear {
+            //                if categories.isEmpty {
+            //                    showStarterTemplateAlert = true
+            //                }
+            //            } // Not working dont uncomment
             ZStack(alignment: .bottomTrailing) {
                 GeometryReader { geometry in
                     ScrollView {
@@ -151,10 +173,9 @@ struct ContentView: View {
                                                 .font(.system(size: 18))
                                         }
                                         Button(action: {
-                                            isDarkMode.toggle()
-                                            UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
+                                            themeManager.isDarkMode.toggle()
                                         }) {
-                                            Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
+                                            Image(systemName: themeManager.isDarkMode ? "sun.max.fill" : "moon.fill")
                                                 .font(.system(size: 18))
                                         }
                                         Button(action: { showImportExport = true }) {
@@ -232,7 +253,12 @@ struct ContentView: View {
                 }
                 .padding(24)
             }
-            .onAppear(perform: prepareHaptics)
+            //            .onAppear(perform: prepareHaptics)
+            .onAppear {
+                if categories.isEmpty {
+                    showStarterTemplateAlert = true
+                }
+            }
             .sheet(item: $selectedCategory) { category in
                 TaskListView(category: category, tasks: $tasks)
             }
@@ -254,26 +280,46 @@ struct ContentView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
-            .onAppear(perform: prepareHaptics)
-            .overlay {
-                if !hasSeenTutorial && showingTutorial {
-                    TutorialOverlay(isShowing: $showingTutorial, onComplete: {
-                        hasSeenTutorial = true
-                    })
-                }
-            }
+            //            .onAppear(perform: prepareHaptics)
+            //            .overlay {
+            //                if !hasSeenTutorial && showingTutorial {
+            //                    TutorialOverlay(isShowing: $showingTutorial, onComplete: {
+            //                        hasSeenTutorial = true
+            //                    })
+            //                }
+            //            }
+            //            .onAppear {
+            //                if !hasSeenTutorial {
+            //                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            //                        withAnimation {
+            //                            showingTutorial = true
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //            .onChange(of: tasks) { _ in
+            //                updateCategoryStats()
+            //                saveTasks()
+            //            }
             .onAppear {
-                if !hasSeenTutorial {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        withAnimation {
-                            showingTutorial = true
-                        }
-                    }
-                }
+                prepareHaptics()
+                initializeCategories()
             }
             .onChange(of: tasks) { _ in
                 updateCategoryStats()
                 saveTasks()
+            }
+            .alert("Welcome to TaskFlow!", isPresented: $showStarterTemplateAlert) {
+                Button("Use Starter Template") {
+                    addStarterTemplate()
+                    TaskCategory.saveCategories(categories)
+                }
+                Button("Start Fresh", role: .cancel) {
+                    categories = []
+                    TaskCategory.saveCategories(categories)
+                }
+            } message: {
+                Text("Would you like to start with our recommended category template or start fresh?")
             }
         }
     }

@@ -3,17 +3,24 @@
 //  To-Do App
 //
 //  Created by Shema Charmant on 5/4/25.
+//  Fixed the dark mode
 //
 
 
 import SwiftUI
 
 class ThemeManager: ObservableObject {
-    @Published var themeChanged = false
+    @AppStorage("isDarkMode") var isDarkMode: Bool = false {
+        didSet {
+            updateTheme()
+        }
+    }
     
     func updateTheme() {
-        themeChanged.toggle()
-        objectWillChange.send()
-        NotificationCenter.default.post(name: NSNotification.Name("ThemeUpdated"), object: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            windowScene.windows.forEach { window in
+                window.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
+            }
+        }
     }
 }
